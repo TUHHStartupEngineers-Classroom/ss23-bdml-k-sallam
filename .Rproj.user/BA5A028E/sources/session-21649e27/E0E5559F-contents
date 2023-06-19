@@ -1,0 +1,250 @@
+---
+title: "03 Automated Machine Learning with H20"
+date: '2023-06-08'
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    df_print: paged
+    collapsed: false
+    number_sections: true
+    toc_depth: 3
+    code_folding: hide
+---
+
+# Automated Machine Learning with H20 (I) Challenge
+
+
+## Loading libraries
+```{r}
+library(h2o)
+library(tidyverse)
+library(readxl)
+library(skimr)
+library(GGally)
+library(ggplot2)
+library(rmarkdown)
+library(rsample)
+library(recipes)
+library(PerformanceAnalytics)
+``` 
+
+
+## Q1:
+
+The answer is C
+```{r}
+#Q1
+employee_attrition_tbl %>%
+  select(Attrition, contains("income")) %>%
+  plot_ggpairs(Attrition)
+#The answer is C
+```
+
+
+## Q2:
+
+The answer is D
+```{r}
+#Q2
+employee_attrition_tbl %>%
+  select(Attrition, contains("PercentSalaryHike")) %>%
+  plot_ggpairs(Attrition)
+
+#The answer is D
+```
+
+
+## Q3
+
+The answer is B
+```{r}
+#Q3
+employee_attrition_tbl %>%
+  select(Attrition, contains("StockOptionLevel")) %>%
+  plot_ggpairs(Attrition)
+
+#The answer is B
+```
+
+## Q4
+
+The answer is A
+```{r}
+#Q4
+
+employee_attrition_tbl %>%
+  select(Attrition, contains("EnvironmentSatisfaction")) %>%
+  plot_ggpairs(Attrition)
+
+#The answer is A
+```
+
+## Q5
+
+The answer is B
+```{r}
+#Q5
+
+employee_attrition_tbl %>%
+  select(Attrition, contains("WorkLifeBalance")) %>%
+  plot_ggpairs(Attrition)
+
+#The answer is B
+```
+
+## Q6
+
+The answer is A
+```{r}
+#Q6
+
+employee_attrition_tbl %>%
+  select(Attrition, contains("JobInvolvement")) %>%
+  plot_ggpairs(Attrition)
+
+#The answer is A
+```
+
+## Q7
+
+The answer is B
+```{r}
+#Q7
+employee_attrition_tbl %>%
+  select(Attrition, contains("OverTime")) %>%
+  plot_ggpairs(Attrition)
+
+#The answer is B
+```
+
+## Q8
+
+The answer is B
+```{r}
+#Q8
+employee_attrition_tbl %>%
+  select(Attrition, contains("TrainingTimesLastYear")) %>%
+  plot_ggpairs(Attrition)
+
+#The answer is B
+```
+
+## Q9
+ The answer is B
+```{r}
+#Q9
+employee_attrition_tbl %>%
+  select(Attrition, contains("YearsAtCompany")) %>%
+  plot_ggpairs(Attrition)
+#The answer is B
+```
+
+## Q10
+
+The answer is C
+```{r}
+#Q 10
+employee_attrition_tbl %>%
+  select(Attrition, contains("YearsSinceLastPromotion")) %>%
+  plot_ggpairs(Attrition)
+
+#The answer is C
+```
+
+
+# Automated Machine Learning with H20 (II) Challenge
+
+
+## Loading data
+```{r}
+product_backorders_tbl <- read_csv("product_backorders.csv")
+```
+
+
+
+## Split into test and train
+```{r}
+set.seed(seed = 1113)
+split_obj <- rsample::initial_split(product_backorders_tbl, prop = 0.85)
+```
+
+
+## Assign training and test data
+
+```{r}
+train_readable_tbl<- training(split_obj)
+test_readable_tbl <- testing(split_obj)
+
+
+  recipe_obj <- recipe( went_on_backorder~., data = train_readable_tbl) %>%
+  step_zv(all_predictors()) %>%
+  prep()
+
+train_tbl <- bake(recipe_obj, new_data = train_readable_tbl)
+test_tbl  <- bake(recipe_obj, new_data = test_readable_tbl)
+
+ #set the predictor names
+ predictors <- c("national_inv", "lead_time", "forecast_3_month", "sales_3_month")
+
+```
+
+
+## specify the response
+```{r}
+ response <- "went_on_backorder"
+```
+
+## Automated machine learning Model
+
+### Initiate H2O
+
+```{r}
+h2o.init()
+```
+
+
+### Split data into a training and a validation data frame
+
+```{r}
+# Setting the seed is just for reproducability
+ split_h2o <- h2o.splitFrame(as.h2o(train_tbl), ratios = c(0.85), seed = 1234)
+ train_h2o <- split_h2o[[1]]
+ valid_h2o <- split_h2o[[2]]
+ test_h2o  <- as.h2o(test_tbl)
+```
+
+
+
+### Set the target and predictors
+```{r}
+ y <- response
+ x <- setdiff(names(train_h2o), y)
+```
+
+### Predicting using Leader Model
+
+```{r}
+ ?h2o.automl
+
+ automl_models_h2o <- h2o.automl(
+   x = x,
+   y = y,
+   training_frame    = train_h2o,
+   validation_frame  = valid_h2o,
+   leaderboard_frame = test_h2o,
+   max_runtime_secs  = 15,
+   nfolds            = 5
+ )
+ automl_models_h2o@leaderboard
+
+
+ Model<-automl_models_h2o@leader
+```
+
+
+### Saving The Leader Model
+
+```{r}
+h2o.saveModel(Model,path = "ml_journal-KhaledSallam")
+```
